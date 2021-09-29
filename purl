@@ -1,0 +1,41 @@
+#!/usr/bin/env python2
+
+## Emulate curl, but in python.
+
+import requests
+import os
+
+CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
+ENTITLEMENT_DIR = '/etc/pki/entitlement'
+
+def find_client_certpairs(where = ENTITLEMENT_DIR):
+    dircontents = os.listdir(where)
+    pemfiles = [ f.strip('.pem') for f in dircontents if f.endswith('.pem') ]
+    if len(pemfiles) % 2 != 0:
+        print('*** Unexpected: odd number of pemfiles in', where)
+    pemkeys = [ k for k in pemfiles if k.endswith('-key') ]
+    pemcerts = [ c for c in pemfiles if not c.endswith('-key') ]
+    pempairs = [ (c,c+'-key') for c in pemcerts if c+'-key' in pemkeys ]
+    return pempairs
+
+URL = argv[-1]
+
+certpairs = find_client_certpairs()
+multi_pairs = len(certpairs) > 1
+if multi_pairs:
+    print('Multiple certificate-key pairs found under %s, will try to access the URL once with each pair.'%ENTITLEMENT_DIR)
+
+for cert,key in certpairs:
+    cert = ENTITLEMENT_DIR + '/' + cert + '.pem'
+    key = ENTITLEMENT_DIR + '/' + key + '.pem'
+    print('Trying to access the URL below with the parameters below:')
+    print('   URL: %s' % URL)
+    print('   CA certificate: %s' % CA_CERT)
+    print('   Client certificate: %s' % cert)
+    print('   Client key: %s' % key)
+    print('\n=> Response is...')
+    resp = requests.get(URL, cert=(cert,key), verify=CA_CERT)
+    print(resp)
+    print '\n=> Response contents are...'
+    print(resp.text)
+
