@@ -4,6 +4,7 @@
 
 import requests
 import os
+import sys
 
 CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
 ENTITLEMENT_DIR = '/etc/pki/entitlement'
@@ -18,7 +19,7 @@ def find_client_certpairs(where = ENTITLEMENT_DIR):
     pempairs = [ (c,c+'-key') for c in pemcerts if c+'-key' in pemkeys ]
     return pempairs
 
-URL = argv[-1]
+URL = sys.argv[-1]
 
 certpairs = find_client_certpairs()
 multi_pairs = len(certpairs) > 1
