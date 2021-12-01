@@ -5,9 +5,16 @@
 import requests
 import os
 import sys
+import argparse
 
 CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
 ENTITLEMENT_DIR = '/etc/pki/entitlement'
+
+parser = argparse.ArgumentParser(description='Purl')
+parser.add_argument('--timeout', '-t', type=float, required=False, help='Request timeout in seconds, fractionals permitted (default=no timeout)')
+parser.add_argument('--cacert', type=str, required=False, help='CA certificate file', default='CA_CERT')
+parser.add_argument('url', help='URL to request')
+args = parser.parse_args()
 
 def find_client_certpairs(where = ENTITLEMENT_DIR):
     dircontents = os.listdir(where)
@@ -29,15 +36,22 @@ if multi_pairs:
 for cert,key in certpairs:
     cert = ENTITLEMENT_DIR + '/' + cert + '.pem'
     key = ENTITLEMENT_DIR + '/' + key + '.pem'
+    req_args=dict()
+    req_args['verify'] = CA_CERT
+    req_args['cert'] = (cert,key)
     print('Trying to access the URL below with the parameters below:')
     print('   URL: %s' % URL)
     print('   CA certificate: %s' % CA_CERT)
     print('   Client certificate: %s' % cert)
     print('   Client key: %s' % key)
+    if args.timeout:
+        print('   Timeout: %d' % args.timeout)
+        req_args['timeout'] = args.timeout
     print('\n=> Response is...')
-    resp = requests.get(URL, cert=(cert,key), verify=CA_CERT)
+    #resp = requests.get(URL, cert=(cert,key), verify=CA_CERT)
+    resp = requests.get(URL, **req_args)
     print(resp)
-    print '\n=> Response contents are...'
+    print('\n=> Response contents are...')
     try:
         print(resp.text)
     except UnicodeEncodeError:
