@@ -47,9 +47,10 @@ for cert,key in certpairs:
     if args.timeout:
         print('   Timeout: %d' % args.timeout)
         req_args['timeout'] = args.timeout
-    print('\n=> Response is...')
-    #resp = requests.get(URL, cert=(cert,key), verify=CA_CERT)
+    print('\n=> Issuing the request now...')
     resp = requests.get(URL, **req_args)
+    print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
+    print('\n=> Response code was...')
     print(resp)
     print('\n=> Response contents are...')
     try:
