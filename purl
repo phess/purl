@@ -38,5 +38,10 @@ for cert,key in certpairs:
     resp = requests.get(URL, cert=(cert,key), verify=CA_CERT)
     print(resp)
     print '\n=> Response contents are...'
-    print(resp.text)
+    try:
+        print(resp.text)
+    except UnicodeEncodeError:
+        print(resp.text.encode('utf-8'))
+    except Exception as e:
+        raise e
 
