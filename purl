@@ -5,9 +5,14 @@
 import requests
 import os
 import sys
+import argparse
 
 CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
 ENTITLEMENT_DIR = '/etc/pki/entitlement'
+
+parser = argparse.ArgumentParser(description='Purl')
+
+args = parser.parse_args()
 
 def find_client_certpairs(where = ENTITLEMENT_DIR):
     dircontents = os.listdir(where)
