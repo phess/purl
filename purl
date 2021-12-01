@@ -13,6 +13,7 @@ ENTITLEMENT_DIR = '/etc/pki/entitlement'
 parser = argparse.ArgumentParser(description='Purl')
 parser.add_argument('--timeout', '-t', type=float, required=False, help='Request timeout in seconds, fractionals permitted (default=no timeout)')
 parser.add_argument('--cacert', type=str, required=False, help='CA certificate file', default='CA_CERT')
+parser.add_argument('--showresponse', '-r', default=False, action='store_true', help='Display response contents (default=no)')
 parser.add_argument('url', help='URL to request')
 args = parser.parse_args()
 
@@ -51,12 +52,13 @@ for cert,key in certpairs:
     resp = requests.get(URL, **req_args)
     print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
     print('\n=> Response code was...')
-    print(resp)
-    print('\n=> Response contents are...')
-    try:
-        print(resp.text)
-    except UnicodeEncodeError:
-        print(resp.text.encode('utf-8'))
-    except Exception as e:
-        raise e
+    print(resp.status_code)
+    if args.showresponse:
+        print('\n=> Response contents are...')
+        try:
+            print(resp.text)
+        except UnicodeEncodeError:
+            print(resp.text.encode('utf-8'))
+        except Exception as e:
+            raise e
 
