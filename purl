@@ -11,14 +11,31 @@ CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
 ENTITLEMENT_DIR = '/etc/pki/entitlement'
 
 parser = argparse.ArgumentParser(description='Purl')
-parser.add_argument('--timeout', '-t', type=float, required=False, help='Request timeout in seconds, fractionals permitted (default=no timeout)')
-parser.add_argument('--cacert', type=str, required=False, help='CA certificate file', default='CA_CERT')
-parser.add_argument('--showresponse', '-r', default=False, action='store_true', help='Display response contents (default=no)')
+parser.add_argument('-t', '--timeout', type=float, required=False, help='Request timeout in seconds, fractionals permitted (default=no timeout)')
+parser.add_argument('--cacert', type=str, required=False, help='CA certificate file', default=CA_CERT)
+parser.add_argument('-r', '--showresponse', default=False, action='store_true', help='Display response contents (default=no)')
+parser.add_argument('-o', '--oauth', required=False, help='OAuth token to use for authentication')
+parser.add_argument('-s', '--simple', required=False, action='store_true', help='Perform a simple HTTPS communication test with the target host')
 parser.add_argument('url', help='URL to request')
 args = parser.parse_args()
 
+# Request arguments dictionary
+req_args = {}
+
+def add_request_header(req_args, key, value):
+    try:
+        req_args['headers'][key] = value
+    # Add the 'headers' request argument if it doesn't exist
+    except KeyError:
+        req_args['headers'] = {}
+        add_request_header(req_args, key, value)
+
 def find_client_certpairs(where = ENTITLEMENT_DIR):
-    dircontents = os.listdir(where)
+    try:
+        dircontents = os.listdir(where)
+    except:
+        print("***ERROR*** Cannot obtain contents of dir {}".format(where))
+        return ()
     pemfiles = [ f.strip('.pem') for f in dircontents if f.endswith('.pem') ]
     if len(pemfiles) % 2 != 0:
         print('*** Unexpected: odd number of pemfiles in', where)
@@ -27,7 +44,68 @@ def find_client_certpairs(where = ENTITLEMENT_DIR):
     pempairs = [ (c,c+'-key') for c in pemcerts if c+'-key' in pemkeys ]
     return pempairs
 
+def talk_https_to(url, options = {}):
+    req_args['verify'] = options.get('CA_CERT')
+    req_args['cert'] = (options.get('cert'), options.get('key'))
+    timeout = options.get('timeout')
+    print('Trying to access the URL below with the parameters below:')
+    print('   URL: %s' % url)
+    print('   CA certificate: %s' % CA_CERT)
+    try:
+        print('   Client certificate: %s' % cert)
+        print('   Client key: %s' % key)
+    except NameError:
+        pass
+    if timeout:
+        print('   Timeout: %d' % timeout)
+        req_args['timeout'] = timeout
+    for req_arg,req_value in req_args.items():
+        print('   {}: {}'.format(req_arg, req_value))
+    print('\n=> Issuing the request now...')
+    resp = requests.get(url, **req_args)
+    return resp
+    #print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
+    #print('\n=> Response code was...')
+    #print(resp.status_code)
+    #if args.showresponse:
+    #    print('\n=> Response contents are...')
+    #    try:
+    #        print(resp.text)
+    #    except UnicodeEncodeError:
+    #        print(resp.text.encode('utf-8'))
+    #    except Exception as e:
+    #        raise e
+
+
+
+
+if args.oauth:
+    oauth_token = args.oauth
+    # Add the Authentication header to req_args['headers']
+    add_request_header(req_args, "Authentication", "Oauth {}".format(oauth_token))
+
 URL = sys.argv[-1]
+
+if args.simple:
+    options = {
+            "CA_CERT": args.cacert,
+            "timeout": args.timeout,
+            "showresponse": args.showresponse
+            }
+    resp = talk_https_to(args.url, options)
+    print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
+    print('\n=> Response code was...')
+    print(resp.status_code)
+    if showresponse:
+        print('\n=> Response contents are...')
+        try:
+            print(resp.text)
+        except UnicodeEncodeError:
+            print(resp.text.encode('utf-8'))
+        except Exception as e:
+            raise e
+    sys.exit(0)
+
 
 certpairs = find_client_certpairs()
 multi_pairs = len(certpairs) > 1
@@ -37,7 +115,6 @@ if multi_pairs:
 for cert,key in certpairs:
     cert = ENTITLEMENT_DIR + '/' + cert + '.pem'
     key = ENTITLEMENT_DIR + '/' + key + '.pem'
-    req_args=dict()
     req_args['verify'] = CA_CERT
     req_args['cert'] = (cert,key)
     print('Trying to access the URL below with the parameters below:')
@@ -48,6 +125,8 @@ for cert,key in certpairs:
     if args.timeout:
         print('   Timeout: %d' % args.timeout)
         req_args['timeout'] = args.timeout
+    for req_arg,req_value in req_args.items():
+        print('   {}: {}'.format(req_arg, req_value))
     print('\n=> Issuing the request now...')
     resp = requests.get(URL, **req_args)
     print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
