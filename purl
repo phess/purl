@@ -6,6 +6,7 @@ import requests
 import os
 import sys
 import argparse
+import base64
 
 CA_CERT='/etc/rhsm/ca/redhat-uep.pem'
 ENTITLEMENT_DIR = '/etc/pki/entitlement'
@@ -16,6 +17,7 @@ parser.add_argument('--cacert', type=str, required=False, help='CA certificate f
 parser.add_argument('-r', '--showresponse', default=False, action='store_true', help='Display response contents (default=no)')
 parser.add_argument('-o', '--oauth', required=False, help='OAuth token to use for authentication')
 parser.add_argument('-s', '--simple', required=False, action='store_true', help='Perform a simple HTTPS communication test with the target host')
+parser.add_argument('-u', '--user', required=False, help='User credentials to use when authenticating to the host, in the form of user:password')
 parser.add_argument('url', help='URL to request')
 args = parser.parse_args()
 
@@ -76,8 +78,12 @@ def talk_https_to(url, options = {}):
     #    except Exception as e:
     #        raise e
 
-
-
+def get_basic_auth_header(user_pass):
+    ''' Receives a user:password string
+    '''
+    header_key = 'Authorization'
+    header_value = base64.b64encode(user_pass.encode('ascii'))
+    return ('Authorization', 'Basic {}'.format(header_value))
 
 if args.oauth:
     oauth_token = args.oauth
@@ -89,14 +95,16 @@ URL = sys.argv[-1]
 if args.simple:
     options = {
             "CA_CERT": args.cacert,
-            "timeout": args.timeout,
-            "showresponse": args.showresponse
+            "timeout": args.timeout
             }
+    if args.user:
+        auth_header_key, auth_header_value = get_basic_auth_header(args.user)
+        options[auth_header_key] = auth_header_value
     resp = talk_https_to(args.url, options)
     print('\n=> Response arrived in: %f' % resp.elapsed.total_seconds())
     print('\n=> Response code was...')
     print(resp.status_code)
-    if showresponse:
+    if args.showresponse:
         print('\n=> Response contents are...')
         try:
             print(resp.text)
